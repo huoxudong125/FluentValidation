@@ -17,3 +17,5 @@ packages/
 *.sln.ide/
 artifacts/
 TestResults/
+.vs/
+*.lock.json

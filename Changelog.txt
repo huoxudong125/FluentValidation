@@ -1,7 +1,76 @@
-5.7 - 
-Fixed issue - DelegateValidator causes a deadlock when running an async function synchronously.
-Added support for cancellation tokens
-Additional overload of SetValidator that takes a validatorProvider
+7.1 - 
+Improve message for MinimumLength and MaximumLength validators in English (other translations would be welcome).
+
+7.0 - 19 May 2017
+Switch to Netstandard based build process
+Deprecated IResourceAccessorBuilder and merged the functionality into LocalizedStringSource
+Deprecated all uses of expression-based localization. Use resourcename/resourcetype instead
+Resolved issue with possible NullReferenceException in the AspNetCore clientside integration for length validators
+Don't clear the ModelValidatorProviders collection by default in the AspNetCore integration (added new ClearValidatorProviders property to control this behaviour)
+Assemblies are now signed
+AssemblyVersion is no longer automatically incremented to avoid binding redirects
+Removed the old FluentValidation.snk and replaced with FluentValidation-dev.snk (nuget releases use a separate snk not stored in git) 
+Ensure IValidatorFactory is resolved from request scope in asp.net core integration
+Rewrote the localization support not to require satellite assemblies
+Fix issue in WebApi integration where a property getter that throws an exception causes validation to fail
+Fix issue in AspNetCore integration where we tried to resolve a collection validator in some situations where a class validator should be used
+Improve SplitPascalCase method to support uppercase character sequences
+ValidationResult.ErrorCode property now always returns the type of the PropertyValidator that generated the message, unless it's been explicitly overriden
+Fix incorrect clientside validation attributes generated for email validator and credit card validator in the asp.net core integration
+Fix child model validation in webapi integration
+
+6.4.1 - 15 Mar 2017
+Resolve issue where the accessor cache would incorrectly cache certain expressions on method calls that return members
+Added the ability to disable the accessor cache
+
+6.4 - 3 Mar 2017
+AspNetCore support
+Performance improvements for validatior instantiation
+EnumValidator supports Flags 
+Add ValidationSeverity
+Add support for collection validators on model-level rules
+Fixes/cleanup to RegexValidator and LengthValidator 
+Async validators should run dependent rules
+Clearer exception message when passing a null instance into the root-level Validate method
+Additional overloads and clarity for WithMessage/WithLocalizedMessage overloads
+
+6.2.1 - 26 Feb 2016
+Fix DependentRules not working inside a top-level call to When
+Fix enum validator to work correctly with nullable enums
+
+6.2 - 22 Feb 2016
+Make ChildValidatorAdaptor.GetValidator public
+Make some of the private methods in FluentValidationModelValdiatorProvider protected instead of private
+ValidatorSelectors are now globally configurable through ValidatorOptions.ValidatorSelectors 
+ValidatorSelectors can be overriden within the CustomizeValidatorAttribute 
+Added "Include" statement
+Switched "dotnet" nuget library to uap10.0
+Add Enum validator
+
+6.1 - 18 Jan 2016
+Overload of ValidateAndThrow supports rulesets.
+Separate PCL to support Universal Win10 apps
+
+6.0.2 - 5 Jan 2016
+Fix issue with TestHelper not using correct overload. 
+
+6.0 - 22 Dec 2015
+Core - Fixed DelegateValidator causes a deadlock when running an async function synchronously.
+Core - Fixed Equal/NotEqual not working with structs
+Core - Additional overload of SetValidator that takes a validatorProvider
+Core - Additional overloads for Length and Matches that take a func for accessing comparison properties
+Core - ValidationContext.IsChildContext is now public
+Core - Add support for non-integer indexers in child collections
+Core - Added Empty and Null validators (opposite of NotEmpty and NotNull)
+Core - Add ErrorCode property
+Core - Add support for Dependent Rules
+Async - Added support for cancellation tokens
+Async - Add support for conditionals
+Async - Allow model-level rules with ValidateAsync
+Localization - added translations for Polish and simple Chinese
+Localization - Fixed name of Czech resource file
+MVC/WebApi - Allow ValidatorAttribute on method parameters
+WebApi - Add support for AddToModelState
 
 5.6.2 - 29 May 2015
 RegExValidator can now use a special {RegularExpression} placeholder in its error message.

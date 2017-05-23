@@ -32,7 +32,7 @@ namespace FluentValidation {
 	/// Extension methods that provide the default set of validators.
 	/// </summary>
 	public static class DefaultValidatorExtensions {
-		/// <summary>
+    /// <summary>
 		/// Defines a 'not null' validator on the current rule builder. 
 		/// Validation will fail if the property is null.
 		/// </summary>
@@ -44,15 +44,15 @@ namespace FluentValidation {
 			return ruleBuilder.SetValidator(new NotNullValidator());
 		}
 
-        /// <summary>
-		/// Defines a 'not null' validator on the current rule builder. 
-		/// Validation will fail if the property is null.
-		/// </summary>
-		/// <typeparam name="T">Type of object being validated</typeparam>
-		/// <typeparam name="TProperty">Type of property being validated</typeparam>
-		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
-		/// <returns></returns>
-		public static IRuleBuilderOptions<T, TProperty> Null<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder) {
+		/// <summary>
+			/// Defines a 'null' validator on the current rule builder. 
+			/// Validation will fail if the property is not null.
+			/// </summary>
+			/// <typeparam name="T">Type of object being validated</typeparam>
+			/// <typeparam name="TProperty">Type of property being validated</typeparam>
+			/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+			/// <returns></returns>
+			public static IRuleBuilderOptions<T, TProperty> Null<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder) {
 			return ruleBuilder.SetValidator(new NullValidator());
 		}
 
@@ -86,6 +86,8 @@ namespace FluentValidation {
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <param name="min"></param>
+		/// <param name="max"></param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> Length<T>(this IRuleBuilder<T, string> ruleBuilder, int min, int max) {
 			return ruleBuilder.SetValidator(new LengthValidator(min, max));
@@ -97,6 +99,8 @@ namespace FluentValidation {
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <param name="min"></param>
+		/// <param name="max"></param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> Length<T>(this IRuleBuilder<T, string> ruleBuilder, Func<T, int> min, Func<T, int> max)
 		{
@@ -109,6 +113,7 @@ namespace FluentValidation {
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <param name="exactLength"></param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> Length<T>(this IRuleBuilder<T, string> ruleBuilder, int exactLength) {
 			return ruleBuilder.SetValidator(new ExactLengthValidator(exactLength));
@@ -120,6 +125,7 @@ namespace FluentValidation {
 		/// </summary>
 		/// <typeparam name="T">Type of object being validated</typeparam>
 		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <param name="exactLength"></param>
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> Length<T>(this IRuleBuilder<T, string> ruleBuilder, Func<T, int> exactLength)
 		{
@@ -136,6 +142,30 @@ namespace FluentValidation {
 		/// <returns></returns>
 		public static IRuleBuilderOptions<T, string> Matches<T>(this IRuleBuilder<T, string> ruleBuilder, string expression) {
 			return ruleBuilder.SetValidator(new RegularExpressionValidator(expression));
+		}
+
+		/// <summary>
+		/// Defines a length validator on the current rule builder, but only for string properties.
+		/// Validation will fail if the length of the string is larger than the length specified.
+		/// </summary>
+		/// <typeparam name="T">Type of object being validated</typeparam>
+		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <returns></returns>
+		public static IRuleBuilderOptions<T, string> MaximumLength<T>(this IRuleBuilder<T, string> ruleBuilder, int maximumLength)
+		{
+			return ruleBuilder.SetValidator(new MaximumLengthValidator(maximumLength));
+		}
+
+		/// <summary>
+		/// Defines a length validator on the current rule builder, but only for string properties.
+		/// Validation will fail if the length of the string is less than the length specified.
+		/// </summary>
+		/// <typeparam name="T">Type of object being validated</typeparam>
+		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <returns></returns>
+		public static IRuleBuilderOptions<T, string> MinimumLength<T>(this IRuleBuilder<T, string> ruleBuilder, int minimumLength)
+		{
+			return ruleBuilder.SetValidator(new MinimumLengthValidator(minimumLength));
 		}
 
 		/// <summary>
@@ -799,34 +829,45 @@ namespace FluentValidation {
 		/// <param name="propertyExpressions">Expressions to specify the properties to validate</param>
 		/// <returns>A ValidationResult object containing any validation failures</returns>
 		public static ValidationResult Validate<T>(this IValidator<T> validator, T instance, params Expression<Func<T, object>>[] propertyExpressions) {
-			var context = new ValidationContext<T>(instance, new PropertyChain(), MemberNameValidatorSelector.FromExpressions(propertyExpressions));
+			var selector = ValidatorOptions.ValidatorSelectors.MemberNameValidatorSelectorFactory(MemberNameValidatorSelector.MemberNamesFromExpressions(propertyExpressions));
+			var context = new ValidationContext<T>(instance, new PropertyChain(), selector);
 			return validator.Validate(context);
 		}
 
 		/// <summary>
 		/// Validates certain properties of the specified instance.
 		/// </summary>
+		/// <param name="validator"></param>
 		/// <param name="instance">The object to validate</param>
 		/// <param name="properties">The names of the properties to validate.</param>
 		/// <returns>A ValidationResult object containing any validation failures.</returns>
 		public static ValidationResult Validate<T>(this IValidator<T> validator, T instance, params string[] properties) {
-			var context = new ValidationContext<T>(instance, new PropertyChain(), new MemberNameValidatorSelector(properties));
+			var context = new ValidationContext<T>(instance, new PropertyChain(), ValidatorOptions.ValidatorSelectors.MemberNameValidatorSelectorFactory(properties));
 			return validator.Validate(context);
 		}
 
+		/// <summary>
+		/// Validates an object using either a custom validator selector or a ruleset.
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="validator"></param>
+		/// <param name="instance"></param>
+		/// <param name="selector"></param>
+		/// <param name="ruleSet"></param>
+		/// <returns></returns>
 		public static ValidationResult Validate<T>(this IValidator<T> validator, T instance, IValidatorSelector selector = null, string ruleSet = null) {
 			if(selector != null && ruleSet != null) {
 				throw new InvalidOperationException("Cannot specify both an IValidatorSelector and a RuleSet.");
 			}
 			
 			if(selector == null) {
-				selector = new DefaultValidatorSelector();
+				selector = ValidatorOptions.ValidatorSelectors.DefaultValidatorSelectorFactory();
 			}
 			
 			if(ruleSet != null) {
 				var ruleSetNames = ruleSet.Split(',', ';');
-				selector = new RulesetValidatorSelector(ruleSetNames);
-			}
+				selector = ValidatorOptions.ValidatorSelectors.RulesetValidatorSelectorFactory(ruleSetNames);
+			} 
 
 			var context = new ValidationContext<T>(instance, new PropertyChain(), selector);
 			return validator.Validate(context);
@@ -840,33 +881,44 @@ namespace FluentValidation {
 		/// <param name="propertyExpressions">Expressions to specify the properties to validate</param>
 		/// <returns>A ValidationResult object containing any validation failures</returns>
 		public static Task<ValidationResult> ValidateAsync<T>(this IValidator<T> validator, T instance, params Expression<Func<T, object>>[] propertyExpressions) {
-			var context = new ValidationContext<T>(instance, new PropertyChain(), MemberNameValidatorSelector.FromExpressions(propertyExpressions));
+			var selector = ValidatorOptions.ValidatorSelectors.MemberNameValidatorSelectorFactory(MemberNameValidatorSelector.MemberNamesFromExpressions(propertyExpressions));
+			var context = new ValidationContext<T>(instance, new PropertyChain(), selector);
 			return validator.ValidateAsync(context);
 		}
 
 		/// <summary>
 		/// Validates certain properties of the specified instance asynchronously.
 		/// </summary>
+		/// <param name="validator"></param>
 		/// <param name="instance">The object to validate</param>
 		/// <param name="properties">The names of the properties to validate.</param>
 		/// <returns>A ValidationResult object containing any validation failures.</returns>
 		public static Task<ValidationResult> ValidateAsync<T>(this IValidator<T> validator, T instance, params string[] properties) {
-			var context = new ValidationContext<T>(instance, new PropertyChain(), new MemberNameValidatorSelector(properties));
+			var context = new ValidationContext<T>(instance, new PropertyChain(), ValidatorOptions.ValidatorSelectors.MemberNameValidatorSelectorFactory(properties));
 			return validator.ValidateAsync(context);
 		}
 
+		/// <summary>
+		/// Validates an object asynchronously using a custom valdiator selector or a ruleset
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <param name="validator"></param>
+		/// <param name="instance"></param>
+		/// <param name="selector"></param>
+		/// <param name="ruleSet"></param>
+		/// <returns></returns>
 		public static Task<ValidationResult> ValidateAsync<T>(this IValidator<T> validator, T instance, IValidatorSelector selector = null, string ruleSet = null) {
 			if (selector != null && ruleSet != null) {
 				throw new InvalidOperationException("Cannot specify both an IValidatorSelector and a RuleSet.");
 			}
 
 			if (selector == null) {
-				selector = new DefaultValidatorSelector();
+				selector = ValidatorOptions.ValidatorSelectors.DefaultValidatorSelectorFactory();
 			}
 
 			if (ruleSet != null) {
 				var ruleSetNames = ruleSet.Split(',', ';');
-				selector = new RulesetValidatorSelector(ruleSetNames);
+				selector = ValidatorOptions.ValidatorSelectors.RulesetValidatorSelectorFactory(ruleSetNames);
 			}
 
 			var context = new ValidationContext<T>(instance, new PropertyChain(), selector);
@@ -876,24 +928,31 @@ namespace FluentValidation {
 		/// <summary>
 		/// Performs validation and then throws an exception if validation fails.
 		/// </summary>
-		public static void ValidateAndThrow<T>(this IValidator<T> validator, T instance) {
-			var result = validator.Validate(instance);
+		/// <param name="validator">The validator this method is extending.</param>
+		/// <param name="instance">The instance of the type we are validating.</param>
+		/// <param name="ruleSet">Optional: a ruleset when need to validate against.</param>
+		public static void ValidateAndThrow<T>(this IValidator<T> validator, T instance, string ruleSet = null) {
+			var result = validator.Validate(instance, ruleSet: ruleSet);
 
-			if(! result.IsValid) {
-				throw new ValidationException(result.Errors);	
+			if (!result.IsValid) {
+				throw new ValidationException(result.Errors);
 			}
 		}
 
 		/// <summary>
 		/// Performs validation asynchronously and then throws an exception if validation fails.
 		/// </summary>
-		public static Task ValidateAndThrowAsync<T>(this IValidator<T> validator, T instance) {
-			return validator
-				.ValidateAsync(instance)
-				.Then(r => r.IsValid ? TaskHelpers.Completed() : TaskHelpers.FromError(new ValidationException(r.Errors)));
+		/// <param name="validator">The validator this method is extending.</param>
+		/// <param name="instance">The instance of the type we are validating.</param>
+		/// <param name="ruleSet">Optional: a ruleset when need to validate against.</param>
+		public static async Task ValidateAndThrowAsync<T>(this IValidator<T> validator, T instance, string ruleSet = null) {
+			var result = await validator.ValidateAsync(instance, ruleSet: ruleSet);
+			if (!result.IsValid) {
+				throw new ValidationException(result.Errors);
+			}
 		}
 
-		/// <summary>
+	    /// <summary>
 		/// Defines an 'inclusive between' validator on the current rule builder, but only for properties of types that implement IComparable.
 		/// Validation will fail if the value of the property is outside of the specifed range. The range is inclusive.
 		/// </summary>
@@ -955,5 +1014,16 @@ namespace FluentValidation {
 		public static IRuleBuilderOptions<T,string> CreditCard<T>(this IRuleBuilder<T, string> ruleBuilder) {
 			return ruleBuilder.SetValidator(new CreditCardValidator());
 		}
-	}
+
+		/// <summary>
+		/// Defines a enum value validator on the current rule builder that ensures that the specific value is a valid enum value.
+		/// </summary>
+		/// <typeparam name="T">Type of Enum being validated</typeparam>
+		/// <typeparam name="TProperty">Type of property being validated</typeparam>
+		/// <param name="ruleBuilder">The rule builder on which the validator should be defined</param>
+		/// <returns></returns>
+		public static IRuleBuilderOptions<T, TProperty> IsInEnum<T, TProperty>(this IRuleBuilder<T, TProperty> ruleBuilder) {
+			return ruleBuilder.SetValidator(new EnumValidator(typeof(TProperty)));
+		}
+    }
 }

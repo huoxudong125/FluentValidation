@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
 namespace FluentValidation {
@@ -22,10 +22,14 @@ namespace FluentValidation {
 	using Internal;
 	using Validators;
 
+	/// <summary>
+	/// Extension methods for collection validation rules 
+	/// </summary>
 	public static class CollectionValidatorExtensions {
 		/// <summary>
 		/// Associates an instance of IValidator with the current property rule and is used to validate each item within the collection.
 		/// </summary>
+		/// <param name="ruleBuilder">Rule builder</param>
 		/// <param name="validator">The validator to use</param>
 		public static ICollectionValidatorRuleBuilder<T, TCollectionElement> SetCollectionValidator<T, TCollectionElement>(this IRuleBuilder<T, IEnumerable<TCollectionElement>> ruleBuilder, IValidator<TCollectionElement> validator) {
 			var adaptor = new ChildCollectionValidatorAdaptor(validator);
@@ -33,15 +37,33 @@ namespace FluentValidation {
 			return new CollectionValidatorRuleBuilder<T, TCollectionElement>(ruleBuilder, adaptor);
 		}
 
-        public static ICollectionValidatorRuleBuilder<T, TCollectionElement> SetCollectionValidator<T, TCollectionElement, TValidator>(this IRuleBuilder<T, IEnumerable<TCollectionElement>> ruleBuilder, Func<T, TValidator> validator) 
-            where TValidator : IValidator<TCollectionElement>
-        {
-            var adaptor = new ChildCollectionValidatorAdaptor(parent => validator((T)parent), typeof(TValidator));
-            ruleBuilder.SetValidator(adaptor);
-            return new CollectionValidatorRuleBuilder<T, TCollectionElement>(ruleBuilder, adaptor);
-        }
+		/// <summary>
+		/// Uses a provider to instantiate a validator instance to be associated with a collection
+		/// </summary>
+		/// <param name="ruleBuilder"></param>
+		/// <param name="validator"></param>
+		/// <typeparam name="T"></typeparam>
+		/// <typeparam name="TCollectionElement"></typeparam>
+		/// <typeparam name="TValidator"></typeparam>
+		/// <returns></returns>
+		public static ICollectionValidatorRuleBuilder<T, TCollectionElement> SetCollectionValidator<T, TCollectionElement, TValidator>(this IRuleBuilder<T, IEnumerable<TCollectionElement>> ruleBuilder, Func<T, TValidator> validator)
+			where TValidator : IValidator<TCollectionElement> {
+			var adaptor = new ChildCollectionValidatorAdaptor(parent => validator((T) parent), typeof(TValidator));
+			ruleBuilder.SetValidator(adaptor);
+			return new CollectionValidatorRuleBuilder<T, TCollectionElement>(ruleBuilder, adaptor);
+		}
 
+		/// <summary>
+		/// Collection rule builder syntax
+		/// </summary>
+		/// <typeparam name="T"></typeparam>
+		/// <typeparam name="TCollectionElement"></typeparam>
 		public interface ICollectionValidatorRuleBuilder<T,TCollectionElement> : IRuleBuilderOptions<T, IEnumerable<TCollectionElement>> {
+			/// <summary>
+			/// Defines a condition to be used to determine if validation should run
+			/// </summary>
+			/// <param name="predicate"></param>
+			/// <returns></returns>
 			ICollectionValidatorRuleBuilder<T,TCollectionElement> Where(Func<TCollectionElement, bool> predicate);
 		}
 

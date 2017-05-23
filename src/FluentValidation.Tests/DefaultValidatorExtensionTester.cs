@@ -64,6 +64,18 @@ namespace FluentValidation.Tests {
 		}
 
 		[Fact]
+		public void Length_should_create_MaximumLengthValidator() {
+			validator.RuleFor(x => x.Surname).MaximumLength(5);
+			AssertValidator<MaximumLengthValidator>();
+		}
+
+		[Fact]
+		public void Length_should_create_MinimumLengthValidator() {
+			validator.RuleFor(x => x.Surname).MinimumLength(5);
+			AssertValidator<MinimumLengthValidator>();
+		}
+
+		[Fact]
 		public void NotEqual_should_create_NotEqualValidator_with_explicit_value() {
 			validator.RuleFor(x => x.Surname).NotEqual("Foo");
 			AssertValidator<NotEqualValidator>();
@@ -115,22 +127,22 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void MustAsync_should_create_AsyncPredicteValidator() {
-			validator.RuleFor(x => x.Surname).MustAsync((x, cancel) => TaskHelpers.FromResult(true));
+			validator.RuleFor(x => x.Surname).MustAsync(async (x, cancel) => true);
 			AssertValidator<AsyncPredicateValidator>();
 		}
 
 		[Fact]
 		public void MustAsync_should_create_AsyncPredicateValidator_with_context() {
-			validator.RuleFor(x => x.Surname).MustAsync((x, val) => TaskHelpers.FromResult(true));
+			validator.RuleFor(x => x.Surname).MustAsync(async (x, val) => true);
 			AssertValidator<AsyncPredicateValidator>();
 		}
 
 		[Fact]
 		public void MustAsync_should_create_AsyncPredicateValidator_with_PropertyValidatorContext() {
 			var hasPropertyValidatorContext = false;
-			this.validator.RuleFor(x => x.Surname).MustAsync((x, val, ctx, cancel) => {
+			this.validator.RuleFor(x => x.Surname).MustAsync(async (x, val, ctx, cancel) => {
 				hasPropertyValidatorContext = ctx != null;
-				return TaskHelpers.FromResult(true);
+				return true;
 			});
 			this.validator.ValidateAsync(new Person {
 				Surname = "Surname"
@@ -198,7 +210,7 @@ namespace FluentValidation.Tests {
 			validator.RuleFor(x => x.NullableInt).GreaterThanOrEqualTo(x => x.OtherNullableInt);
 			AssertValidator<GreaterThanOrEqualValidator>();
 		}
-
+#if !PORTABLE40
 		[Fact]
 		public void MustAsync_should_not_throw_InvalidCastException() {
 			var model = new Model
@@ -210,7 +222,7 @@ namespace FluentValidation.Tests {
 			var result = validator.ValidateAsync(model).Result;
 			result.IsValid.ShouldBeTrue();
 		}
-
+#endif
 		private void AssertValidator<TValidator>() {
 			var rule = (PropertyRule)validator.First();
 			rule.CurrentValidator.ShouldBe<TValidator>();
@@ -221,6 +233,7 @@ namespace FluentValidation.Tests {
 			public IEnumerable<Guid> Ids { get; set; }
 		}
 
+#if !PORTABLE40
 		class AsyncModelTestValidator : AbstractValidator<Model>
 		{
 			public AsyncModelTestValidator()
@@ -229,5 +242,7 @@ namespace FluentValidation.Tests {
 					.MustAsync((g, cancel) => Task.FromResult(true));
 			}
 		}
+#endif
 	}
+
 }

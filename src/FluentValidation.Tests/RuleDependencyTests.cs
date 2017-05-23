@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
 namespace FluentValidation.Tests {
@@ -49,5 +49,36 @@ namespace FluentValidation.Tests {
 			results.Errors.Single().PropertyName.ShouldEqual("Surname");
 		}
 
+		[Fact]
+		public void Dependent_rules_inside_ruleset() {
+			var validator = new TestValidator();
+			validator.RuleSet("MyRuleSet", () => {
+
+				validator.RuleFor(x => x.Surname).NotNull()
+					.DependentRules(d => {
+						d.RuleFor(x => x.Forename).NotNull();
+					});
+			});
+
+			var results = validator.Validate(new Person { Surname = "foo" }, ruleSet: "MyRuleSet");
+			results.Errors.Count.ShouldEqual(1);
+			results.Errors.Single().PropertyName.ShouldEqual("Forename");
+		}
+
+		[Fact]
+		public void Dependent_rules_inside_when() {
+			var validator = new TestValidator();
+			validator.When(o => o.Forename != null, () =>
+			{
+				validator.RuleFor(o => o.Age).LessThan(1)
+				.DependentRules(d =>
+				{
+					d.RuleFor(o => o.Forename).NotNull();
+				});
+			}); ;
+
+			var result = validator.Validate(new Person());
+			result.IsValid.ShouldBeTrue();
+		}
 	}
 }

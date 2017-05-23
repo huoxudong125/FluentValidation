@@ -28,26 +28,22 @@ namespace FluentValidation.Validators {
 		readonly IEqualityComparer comparer;
 		readonly Func<object, object> func;
 
-		public NotEqualValidator(Func<object, object> func, MemberInfo memberToCompare)
-			: base(() => Messages.notequal_error) {
+		public NotEqualValidator(Func<object, object> func, MemberInfo memberToCompare) : base(new LanguageStringSource(nameof(NotEqualValidator))) {
 			this.func = func;
 			MemberToCompare = memberToCompare;
 		}
 
-		public NotEqualValidator(Func<object, object> func, MemberInfo memberToCompare, IEqualityComparer equalityComparer)
-			: base(() => Messages.notequal_error) {
+		public NotEqualValidator(Func<object, object> func, MemberInfo memberToCompare, IEqualityComparer equalityComparer) : base(new LanguageStringSource(nameof(NotEqualValidator))) {
 			this.func = func;
 			this.comparer = equalityComparer;
 			MemberToCompare = memberToCompare;
 		}
 
-		public NotEqualValidator(object comparisonValue)
-			: base(() => Messages.notequal_error) {
+		public NotEqualValidator(object comparisonValue) : base(new LanguageStringSource(nameof(NotEqualValidator))) {
 			ValueToCompare = comparisonValue;
 		}
 
-		public NotEqualValidator(object comparisonValue, IEqualityComparer equalityComparer)
-			: base(() => Messages.notequal_error) {
+		public NotEqualValidator(object comparisonValue, IEqualityComparer equalityComparer) :base(new LanguageStringSource(nameof(NotEqualValidator)) ){
 			ValueToCompare = comparisonValue;
 			comparer = equalityComparer;
 		}
@@ -88,7 +84,7 @@ namespace FluentValidation.Validators {
 				return Internal.Comparer.GetEqualsResult((IComparable)comparisonValue, (IComparable)propertyValue);
 			}
 
-			return comparisonValue == propertyValue;
+			return Object.Equals(comparisonValue, propertyValue);
 		}
 	}
 }

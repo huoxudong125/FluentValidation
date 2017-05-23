@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
 namespace FluentValidation.Tests {
@@ -26,12 +26,26 @@ namespace FluentValidation.Tests {
 
     public class LocalisedNameTester : IDisposable {
 
+	    public LocalisedNameTester() {
+		    CultureScope.SetDefaultCulture();
+	    }
+
 		public void Dispose() {
-			ValidatorOptions.ResourceProviderType = null;
+			CultureScope.SetDefaultCulture();
 		}
 
 		[Fact]
 		public void Uses_localized_name() {
+			var validator = new TestValidator {
+				v => v.RuleFor(x => x.Surname).NotNull().WithLocalizedName(typeof(MyResources), nameof(MyResources.CustomProperty))
+			};
+
+			var result = validator.Validate(new Person());
+			result.Errors.Single().ErrorMessage.ShouldEqual("'foo' must not be empty.");
+		}
+
+		[Fact]
+		public void Uses_localized_name_expression() {
 			var validator = new TestValidator {
 				v => v.RuleFor(x => x.Surname).NotNull().WithLocalizedName(() => MyResources.CustomProperty)
 			};
@@ -50,18 +64,6 @@ namespace FluentValidation.Tests {
 
 			var result = validator.Validate(new Person());
 			result.Errors.Single().ErrorMessage.ShouldEqual("'foo' must not be empty.");
-		}
-
-		[Fact]
-		public void Overwrites_resoruce_type_when_using_custom_ResourceProvider_and_custom_ResourceAccessorProvider() {
-			ValidatorOptions.ResourceProviderType = typeof(OverrideResources);
-
-			var validator = new TestValidator {
-				v => v.RuleFor(x => x.Surname).NotNull().WithLocalizedName(() => MyResources.CustomProperty, new FallbackAwareResourceAccessorBuilder())
-			};
-
-			var result = validator.Validate(new Person());
-			result.Errors.Single().ErrorMessage.ShouldEqual("'bar' must not be empty.");
 		}
 
 		[Fact]

@@ -25,85 +25,44 @@ namespace FluentValidation.Validators {
 	using Results;
 
 	public class RegularExpressionValidator : PropertyValidator, IRegularExpressionValidator {
-		string expression;
-		readonly RegexOptions? regexOptions;
-		
-		readonly Func<object, string> expressionFunc;
+		readonly string expression;
 		readonly Func<object, Regex> regexFunc;
 
-		public RegularExpressionValidator(string expression) : base(() => Messages.regex_error) {
+		public RegularExpressionValidator(string expression) :base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
 			this.expression = expression;
+
+			var regex = new Regex(expression);
+			this.regexFunc = x => regex;
 		}
 
-		public RegularExpressionValidator(Regex regex) : base(() => Messages.regex_error) {
+		public RegularExpressionValidator(Regex regex) : base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
 			this.expression = regex.ToString();
 			this.regexFunc = x => regex;
 		}
 
-		public RegularExpressionValidator(string expression, RegexOptions options) : base(() => Messages.regex_error) {
+		public RegularExpressionValidator(string expression, RegexOptions options) : base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
 			this.expression = expression;
-			this.regexOptions = options;
+			var regex = new Regex(expression, options);
+			this.regexFunc = x => regex;
 		}
 
-		public RegularExpressionValidator(Func<object, string> expression)
-			: base(() => Messages.regex_error)
-		{
-			this.expressionFunc = expression;
+		public RegularExpressionValidator(Func<object, string> expressionFunc) : base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
+			this.regexFunc = x => new Regex(expressionFunc(x));
 		}
 
-		public RegularExpressionValidator(Func<object, Regex> regex)
-			: base(() => Messages.regex_error)
-		{
-			this.regexFunc = regex;
+		public RegularExpressionValidator(Func<object, Regex> regexFunc) : base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
+			this.regexFunc = regexFunc;
 		}
 
-		public RegularExpressionValidator(Func<object, string> expression, RegexOptions options)
-			: base(() => Messages.regex_error)
-		{
-			this.expressionFunc = expression;
-			this.regexOptions = options;
+		public RegularExpressionValidator(Func<object, string> expression, RegexOptions options) : base(new LanguageStringSource(nameof(RegularExpressionValidator))) {
+
+			this.regexFunc = x => new Regex(expression(x), options);
 		}
 
 		protected override bool IsValid(PropertyValidatorContext context) {
-			Regex regex = null;
-
-			if (regexOptions.HasValue)
-			{
-				if (regexFunc != null)
-				{
-					Regex regexOrig = regexFunc(context.Instance);
-					expression = regexOrig.ToString();
-					regex = new Regex(regexOrig.ToString(), regexOptions.Value);
-				}
-				else if (expressionFunc != null)
-				{
-					expression = expressionFunc(context.Instance);
-					regex = new Regex(expression, regexOptions.Value);
-				}
-				else
-				{
-					regex = new Regex(expression, regexOptions.Value);
-				}
-			}
-			else
-			{
-				if (regexFunc != null)
-				{
-					regex = regexFunc(context.Instance);
-					expression = regex.ToString();
-				}
-				else if (expressionFunc != null)
-				{
-					expression = expressionFunc(context.Instance);
-					regex = new Regex(expression);
-				}
-				else
-				{
-					regex = new Regex(expression);
-				}
-			}
-
-			if (context.PropertyValue != null && !regex.IsMatch((string)context.PropertyValue)) {
+			var regex = regexFunc(context.Instance);
+			
+			if (regex != null && context.PropertyValue != null && !regex.IsMatch((string) context.PropertyValue)) {
 				context.MessageFormatter.AppendArgument("RegularExpression", regex.ToString());
 				return false;
 			}

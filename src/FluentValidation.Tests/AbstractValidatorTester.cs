@@ -18,6 +18,7 @@
 
 namespace FluentValidation.Tests {
 	using System;
+	using System.Collections.Generic;
 	using System.Globalization;
 	using System.Threading;
 	using System.Threading.Tasks;
@@ -64,6 +65,21 @@ namespace FluentValidation.Tests {
 			validator.RuleFor(x => x.Forename).NotNull().WithMessage("Foo");
 			var result = validator.Validate(new Person());
 			result.Errors[0].ErrorMessage.ShouldEqual("Foo");
+		}
+
+		[Fact]
+		public void WithErrorCode_should_override_error_code() {
+			validator.RuleFor(x => x.Forename).NotNull().WithErrorCode("ErrCode101");
+			var result = validator.Validate(new Person());
+			result.Errors[0].ErrorCode.ShouldEqual("ErrCode101");
+		}
+
+		[Fact]
+		public void WithMessage_and_WithErrorCode_should_override_error_message_and_error_code() {
+			validator.RuleFor(x => x.Forename).NotNull().WithMessage("Foo").WithErrorCode("ErrCode101");
+			var result = validator.Validate(new Person());
+			result.Errors[0].ErrorMessage.ShouldEqual("Foo");
+			result.Errors[0].ErrorCode.ShouldEqual("ErrCode101");
 		}
 
 		[Fact]
@@ -185,6 +201,17 @@ namespace FluentValidation.Tests {
 				nonGenericValidator.Validate("foo"));
 		}
 
+		[Fact]
+		public void RuleForeach_with_null_instances() {
+			var model = new Person {
+				NickNames = new string[] { null }
+			};
+
+			validator.RuleForEach(x => x.NickNames).NotNull();
+			var result = validator.Validate(model);
+			Console.WriteLine(result.Errors[0].ErrorMessage);
+			result.IsValid.ShouldBeFalse();
+		}
 
 		private class DerivedPerson : Person { }
 

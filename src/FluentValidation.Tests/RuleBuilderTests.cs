@@ -67,13 +67,13 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public void Should_set_cutom_property_name() {
 			builder.SetValidator(new TestPropertyValidator()).WithName("Foo");
-			Assert.Equal(builder.Rule.DisplayName.GetString(), "Foo");
+			Assert.Equal(builder.Rule.DisplayName.GetString(null), "Foo");
 		}
 
 		[Fact]
 		public void Should_set_custom_error() {
 			builder.SetValidator(new TestPropertyValidator()).WithMessage("Bar");
-			builder.Rule.CurrentValidator.ErrorMessageSource.GetString().ShouldEqual("Bar");
+			builder.Rule.CurrentValidator.ErrorMessageSource.GetString(null).ShouldEqual("Bar");
 		}
 
 		[Fact]
@@ -93,12 +93,12 @@ namespace FluentValidation.Tests {
 
 		[Fact]
 		public void Should_throw_if_message_is_null() {
-			typeof(ArgumentNullException).ShouldBeThrownBy(() => builder.SetValidator(new TestPropertyValidator()).WithMessage(null));
+			typeof(ArgumentNullException).ShouldBeThrownBy(() => builder.SetValidator(new TestPropertyValidator()).WithMessage((string)null));
 		}
 
 		[Fact]
 		public void Should_throw_if_property_name_is_null() {
-			typeof(ArgumentNullException).ShouldBeThrownBy(() => builder.SetValidator(new TestPropertyValidator()).WithName(null));
+			typeof(ArgumentNullException).ShouldBeThrownBy(() => builder.SetValidator(new TestPropertyValidator()).WithName((string)null));
 		}
 
 		[Fact]
@@ -134,18 +134,15 @@ namespace FluentValidation.Tests {
 		[Fact]
 		public void Calling_when_async_should_replace_current_validator_with_predicate_validator() {
 			var validator = new TestPropertyValidator();
-			builder.SetValidator(validator).WhenAsync(x => TaskHelpers.FromResult(true));
+			builder.SetValidator(validator).WhenAsync(async x => true);
 			builder.Rule.CurrentValidator.ShouldBe<DelegatingValidator>();
 
 			var predicateValidator = (DelegatingValidator) builder.Rule.CurrentValidator;
 			predicateValidator.InnerValidator.ShouldBeTheSameAs(validator);
 		}
-
+#if !CoreCLR
 		[Fact]
 		public void Calling_validate_should_delegate_to_underlying_validator() {
-#if CoreCLR
-			Assert.True(false, "No mocking on coreclr");
-#else
 			var person = new Person {Surname = "Foo"};
 			var validator = new Mock<IPropertyValidator>();
 			builder.SetValidator(validator.Object);
@@ -153,14 +150,12 @@ namespace FluentValidation.Tests {
 			builder.Rule.Validate(new ValidationContext<Person>(person, new PropertyChain(), new DefaultValidatorSelector())).ToList();
 
 			validator.Verify(x => x.Validate(It.Is<PropertyValidatorContext>(c => (string)c.PropertyValue == "Foo")));
-#endif
-		}
 
+		}
+#endif
+#if! CoreCLR
 		[Fact]
 		public void Calling_ValidateAsync_should_delegate_to_underlying_sync_validator() {
-#if CoreCLR
-			Assert.True(false, "No mocking on coreclr");
-#else
 			var person = new Person { Surname = "Foo" };
 			var validator = new Mock<IPropertyValidator>();
 			builder.SetValidator(validator.Object);
@@ -169,25 +164,71 @@ namespace FluentValidation.Tests {
 
 			validator.Verify(x => x.Validate(It.Is<PropertyValidatorContext>(c => (string)c.PropertyValue == "Foo")));
 
-#endif
-		}
 
+		}
+#endif
+#if !CoreCLR
 		[Fact]
 		public void Calling_ValidateAsync_should_delegate_to_underlying_async_validator()
 		{
-#if CoreCLR
-			Assert.True(false, "No mocking on coreclr");
-#else
 			var person = new Person { Surname = "Foo" };
-		    var validator = new Mock<AsyncValidatorBase>(MockBehavior.Loose, Messages.predicate_error) {CallBase = true};
-			validator.Setup(v => v.ValidateAsync(It.IsAny<PropertyValidatorContext>(), It.IsAny<CancellationToken>())).Returns(TaskHelpers.FromResult(Enumerable.Empty<ValidationFailure>()));
+			TaskCompletionSource<IEnumerable<ValidationFailure>> tcs = new TaskCompletionSource<IEnumerable<ValidationFailure>>();
+			tcs.SetResult(Enumerable.Empty<ValidationFailure>());
+
+			var validator = new Mock<AsyncValidatorBase>(MockBehavior.Loose, ValidatorOptions.LanguageManager.GetStringForValidator<AsyncPredicateValidator>()) {CallBase = true};
+			validator.Setup(v => v.ValidateAsync(It.IsAny<PropertyValidatorContext>(), It.IsAny<CancellationToken>())).Returns(tcs.Task);
 			builder.SetValidator(validator.Object);
 
 			builder.Rule.ValidateAsync(new ValidationContext<Person>(person, new PropertyChain(), new DefaultValidatorSelector()), new CancellationToken()).Result.ToList();
 
 			validator.Verify(x => x.ValidateAsync(It.Is<PropertyValidatorContext>(c => (string)c.PropertyValue == "Foo"), It.IsAny<CancellationToken>()));
-#endif
+
 		}
+#if !PORTABLE40
+		[Fact]
+		public async Task TestAsyncWithDependentRules_SyncEntry()
+		{
+			var validator = new TestValidator();
+			validator.RuleFor(o => o.Forename)
+				.NotNull()
+				.DependentRules(d => {
+					d.RuleFor(o => o.Address).NotNull();
+					d.RuleFor(o => o.Age).MustAsync(async (p, token) => await Task.FromResult(p > 10));
+				});
+
+			var result = await validator.ValidateAsync(new Person());
+			Assert.Equal(1, result.Errors.Count);
+			Assert.True(result.Errors.Any(x => x.PropertyName=="Forename"));
+
+			result = await validator.ValidateAsync(new Person() {Forename="Foo"});
+			Assert.Equal(2, result.Errors.Count);
+			Assert.True(result.Errors.Count(x =>x.PropertyName =="Address") == 1, "Address");
+			Assert.True(result.Errors.Count(x =>x.PropertyName =="Age") == 1, "Age");
+		}
+        
+		[Fact]
+		public async Task TestAsyncWithDependentRules_AsyncEntry()
+		{
+			var validator = new TestValidator();
+			validator.RuleFor(o => o)
+				.MustAsync(async (p, ct) => await Task.FromResult(p.Forename != null))
+				.DependentRules(d => {
+					d.RuleFor(o => o.Address).NotNull();
+					d.RuleFor(o => o.Age).MustAsync(async (p, token) => await Task.FromResult(p > 10));
+				});
+
+			var result = await validator.ValidateAsync(new Person());
+			Assert.Equal(1, result.Errors.Count);
+			Assert.True(result.Errors.Any(x => x.PropertyName == ""));
+
+			result = await validator.ValidateAsync(new Person() {Forename="Foo"});
+			Assert.Equal(2, result.Errors.Count);
+			Assert.True(result.Errors.Count(x => x.PropertyName == "Address") == 1, "Address");
+			Assert.True(result.Errors.Count(x => x.PropertyName == "Age") == 1, "Age");
+		}
+#endif
+       
+#endif
 
 		[Fact]
 		public void PropertyDescription_should_return_property_name_split() {
@@ -214,7 +255,7 @@ namespace FluentValidation.Tests {
 		public void Nullable_object_with_async_condition_should_not_throw()
 		{
 			var builder = new RuleBuilder<Person, int>(PropertyRule.Create<Person, int>(x => x.NullableInt.Value));
-			builder.GreaterThanOrEqualTo(3).WhenAsync(x => TaskHelpers.FromResult(x.NullableInt != null));
+			builder.GreaterThanOrEqualTo(3).WhenAsync(async x => x.NullableInt != null);
 			builder.Rule.Validate(new ValidationContext<Person>(new Person(), new PropertyChain(), new DefaultValidatorSelector()));
 		}
 
@@ -252,7 +293,7 @@ namespace FluentValidation.Tests {
 		}
 
 		class TestPropertyValidator : PropertyValidator {
-			public TestPropertyValidator() : base(() => Messages.notnull_error) {
+			public TestPropertyValidator() : base(new LanguageStringSource(nameof(NotNullValidator))) {
 				
 			}
 

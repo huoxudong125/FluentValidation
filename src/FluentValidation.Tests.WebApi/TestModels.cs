@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 namespace FluentValidation.Tests.WebApi {
 	using System;
@@ -136,6 +136,21 @@ namespace FluentValidation.Tests.WebApi {
 
     public class TestModel9Validator : AbstractValidator<TestModel9> {
         public TestModel9Validator() {
+            RuleFor(m => m.Name).NotEmpty();
+        }
+    }
+
+    [Validator(typeof(TestModel10Validator))]
+    public class TestModel10
+    {
+        public string Name { get; set; }
+        public TestModel Child { get; set; }
+    }
+
+    public class TestModel10Validator : AbstractValidator<TestModel10>
+    {
+        public TestModel10Validator()
+        {
             RuleFor(m => m.Name).NotEmpty();
         }
     }

@@ -52,6 +52,11 @@ namespace FluentValidation.Validators {
 			set { InnerValidator.ErrorMessageSource = value; }
 		}
 
+		public IStringSource ErrorCodeSource {
+			get { return InnerValidator.ErrorCodeSource; }
+			set { InnerValidator.ErrorCodeSource = value; }
+		}
+
 		public IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context) {
 			if (condition(context.Instance)) {
 				return InnerValidator.Validate(context);
@@ -59,19 +64,20 @@ namespace FluentValidation.Validators {
 			return Enumerable.Empty<ValidationFailure>();
 		}
 
-		public Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
+		public async  Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
 			if (!condition(context.Instance))
-				return TaskHelpers.FromResult(Enumerable.Empty<ValidationFailure>());
+				return Enumerable.Empty<ValidationFailure>();
 
 			if (asyncCondition == null)
-				return InnerValidator.ValidateAsync(context, cancellation);
+				return await InnerValidator.ValidateAsync(context, cancellation);
 
-			return asyncCondition(context.Instance)
-				.Then(shouldValidate => 
-					shouldValidate
-						? InnerValidator.ValidateAsync(context, cancellation)
-						: TaskHelpers.FromResult(Enumerable.Empty<ValidationFailure>()),
-					runSynchronously: true);
+			bool shouldValidate = await asyncCondition(context.Instance);
+
+			if (shouldValidate) {
+				return await InnerValidator.ValidateAsync(context, cancellation);
+			}
+
+			return Enumerable.Empty<ValidationFailure>();
 		}
 
 		public ICollection<Func<object, object, object>> CustomMessageFormatArguments {
@@ -85,6 +91,12 @@ namespace FluentValidation.Validators {
 		public Func<object, object> CustomStateProvider {
 			get { return InnerValidator.CustomStateProvider; }
 			set { InnerValidator.CustomStateProvider = value; }
+		}
+
+		public Severity Severity
+		{
+		    get { return InnerValidator.Severity; }
+		    set { InnerValidator.Severity = value; }
 		}
 
 		IPropertyValidator IDelegatingValidator.InnerValidator {

@@ -19,12 +19,10 @@
 namespace FluentValidation.Internal {
 	using System;
 	using System.Collections.Generic;
-	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
-	using System.Text.RegularExpressions;
+	using System.Text;
 	using System.Threading.Tasks;
-	using Validators;
 
 	/// <summary>
 	/// Useful extensions
@@ -43,10 +41,19 @@ namespace FluentValidation.Internal {
 		}
 
 		/// <summary>
+		/// Checks if the expression is a parameter expression
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
+		public static bool IsParameterExpression(this LambdaExpression expression) {
+			return expression.Body.NodeType == ExpressionType.Parameter;
+		}
+
+		/// <summary>
 		/// Gets a MemberInfo from a member expression.
 		/// </summary>
 		public static MemberInfo GetMember(this LambdaExpression expression) {
-			var memberExp = RemoveUnary(expression.Body);
+			var memberExp = RemoveUnary(expression.Body) as MemberExpression;
 
 			if (memberExp == null) {
 				return null;
@@ -59,33 +66,65 @@ namespace FluentValidation.Internal {
 		/// Gets a MemberInfo from a member expression.
 		/// </summary>
 		public static MemberInfo GetMember<T, TProperty>(this Expression<Func<T, TProperty>> expression) {
-			var memberExp = RemoveUnary(expression.Body);
+			var memberExp = RemoveUnary(expression.Body) as MemberExpression;
 
 			if (memberExp == null) {
 				return null;
 			}
 
+			Expression currentExpr = memberExp.Expression;
+
+			// Unwind the expression to get the root object that the expression acts upon. 
+			while (true) {
+				currentExpr = RemoveUnary(currentExpr);
+
+				if (currentExpr != null && currentExpr.NodeType == ExpressionType.MemberAccess) {
+					currentExpr = ((MemberExpression) currentExpr).Expression;
+				}
+				else {
+					break;
+				}
+			}
+
+			if (currentExpr == null || currentExpr.NodeType != ExpressionType.Parameter) {
+				return null; // We don't care if we're not acting upon the model instance. 
+			}
+
 			return memberExp.Member;
 		}
 
-		private static MemberExpression RemoveUnary(Expression toUnwrap) {
+
+		private static Expression RemoveUnary(Expression toUnwrap) {
 			if (toUnwrap is UnaryExpression) {
-				return ((UnaryExpression)toUnwrap).Operand as MemberExpression;
+				return ((UnaryExpression)toUnwrap).Operand;
 			}
 
-			return toUnwrap as MemberExpression;
+			return toUnwrap;
 		}
-
 
 		/// <summary>
 		/// Splits pascal case, so "FooBar" would become "Foo Bar"
 		/// </summary>
 		public static string SplitPascalCase(this string input) {
-			if (string.IsNullOrEmpty(input)) {
+			if (string.IsNullOrEmpty(input))
 				return input;
+
+			var retVal = new StringBuilder(input.Length + 5);
+
+			for (int i = 0; i < input.Length; ++i) {
+				var currentChar = input[i];
+				if (char.IsUpper(currentChar)) {
+					if ((i > 1 && !char.IsUpper(input[i - 1]))
+							|| (i + 1 < input.Length && !char.IsUpper(input[i + 1])))
+						retVal.Append(' ');
+				}
+
+				retVal.Append(currentChar);
 			}
-			return Regex.Replace(input, "([A-Z])", " $1").Trim();
+
+			return retVal.ToString().Trim();
 		}
+
 		/// <summary>
 		/// Helper method to construct a constant expression from a constant.
 		/// </summary>
@@ -105,6 +144,7 @@ namespace FluentValidation.Internal {
 			}
 		}
 
+#pragma warning disable 1591 
 		public static Func<object, object> CoerceToNonGeneric<T, TProperty>(this Func<T, TProperty> func) {
 			return x => func((T)x);
 		} 
@@ -141,27 +181,7 @@ namespace FluentValidation.Internal {
 		public static Action<object> CoerceToNonGeneric<T>(this Action<T> action) {
 			return x => action((T)x);
 		}
+#pragma warning restore 1591
 
-#if WINDOWS_PHONE
-		// WP7 doesn't support expression tree compilation.
-		// As a workaround, this extension method falls back to delegate compilation. 
-		// However, it only supports simple property references, ie x => x.SomeProperty
-
-		internal static TDelegate Compile<TDelegate>(this Expression<TDelegate> expression) {
-			var compiledDelegate = CompilePropertyGetterExpression(expression, typeof(TDelegate));
-			return (TDelegate)compiledDelegate;
-		}
-
-		static object CompilePropertyGetterExpression(LambdaExpression expression, Type delegateType) {
-			var member = expression.GetMember() as PropertyInfo;
-
-			if (member == null) {
-				throw new NotSupportedException("FluentValidation for WP7 can only be used with expressions that reference public properties, ie x => x.SomeProperty");
-			}
-
-			var compiledDelegate = Delegate.CreateDelegate(delegateType, member.GetGetMethod());
-			return compiledDelegate;
-		}
-#endif
 	}
 }

@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
 namespace FluentValidation.Tests {
@@ -30,7 +30,7 @@ namespace FluentValidation.Tests {
 		public DisplayAttributeTests() {
            CultureScope.SetDefaultCulture();
         }
-
+#if !PORTABLE40
 		[Fact]
 		public void Infers_display_name_from_DisplayAttribute() {
 			var validator = new InlineValidator<DisplayNameTestModel> {
@@ -40,7 +40,9 @@ namespace FluentValidation.Tests {
 			var result = validator.Validate(new DisplayNameTestModel());
 			result.Errors.Single().ErrorMessage.ShouldEqual("'Foo' must not be empty.");
 		}
+#endif
 
+#if !CoreCLR
 		[Fact]
 		public void Infers_display_name_from_DisplayNameAttribute() {
 			var validator = new InlineValidator<DisplayNameTestModel> {
@@ -50,11 +52,13 @@ namespace FluentValidation.Tests {
 			var result = validator.Validate(new DisplayNameTestModel());
 			result.Errors.Single().ErrorMessage.ShouldEqual("'Bar' must not be empty.");
 		}
+#endif
 
-		public class DisplayNameTestModel {
+        public class DisplayNameTestModel {
+#if !PORTABLE40
 			[Display(Name = "Foo")]
 			public string Name1 { get; set; }
-
+#endif
 #if !CoreCLR
 			[DisplayName("Bar")]
 #endif

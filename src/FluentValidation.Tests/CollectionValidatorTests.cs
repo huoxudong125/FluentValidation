@@ -95,7 +95,7 @@ namespace FluentValidation.Tests {
 		[Fact]
 	    public void Async_condition_should_work_with_child_collection() {
 	        var validator = new TestValidator() {
-	                                                v => v.RuleFor(x => x.Orders).SetCollectionValidator(new OrderValidator()).WhenAsync(x => TaskHelpers.FromResult(x.Orders.Count == 3 /*there are only 2*/))
+	                                                v => v.RuleFor(x => x.Orders).SetCollectionValidator(new OrderValidator()).WhenAsync(async x => x.Orders.Count == 3 /*there are only 2*/)
 	                                            };
 
 	        var result = validator.ValidateAsync(person).Result;
@@ -146,6 +146,20 @@ namespace FluentValidation.Tests {
 
 			var results = validator.Validate(person);
 			results.Errors[0].PropertyName.ShouldEqual("Orders2[0].ProductName");
+		}
+
+		[Fact]
+		public void Top_level_collection() {
+			var v = new InlineValidator<IEnumerable<Order>>();
+			v.RuleFor(x => x).SetCollectionValidator(new OrderValidator());
+			var orders = new List<Order> {
+				new Order(),
+				new Order()
+			};
+
+			var result = v.Validate(orders);
+			result.Errors.Count.ShouldEqual(4);
+			result.Errors[0].PropertyName.ShouldEqual("x[0].ProductName");
 		}
 	
 		public class OrderValidator : AbstractValidator<Order> {

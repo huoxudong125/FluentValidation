@@ -21,25 +21,41 @@ namespace FluentValidation.Results {
 	using System.Collections.Generic;
 	using System.Linq;
 
-#if !SILVERLIGHT && !PORTABLE && !PORTABLE40 && !CoreCLR
+	/// <summary>
+	/// The result of running a validator
+	/// </summary>
+#if !PORTABLE && !PORTABLE40 && !NETSTANDARD1_0
 	[Serializable]
 #endif
 	public class ValidationResult {
-		private readonly List<ValidationFailure> errors = new List<ValidationFailure>();
+		private readonly IList<ValidationFailure> errors;
 
-		public virtual bool IsValid {
-			get { return Errors.Count == 0; }
-		}
+		/// <summary>
+		/// Whether validation succeeded
+		/// </summary>
+		public virtual bool IsValid => Errors.Count == 0;
 
-		public IList<ValidationFailure> Errors {
-			get { return errors; }
-		}
+		/// <summary>
+		/// A collection of errors
+		/// </summary>
+		public IList<ValidationFailure> Errors => errors;
 
+		/// <summary>
+		/// Creates a new validationResult
+		/// </summary>
 		public ValidationResult() {
+			this.errors = new List<ValidationFailure>();
 		}
 
+		/// <summary>
+		/// Creates a new ValidationResult from a collection of failures
+		/// </summary>
+		/// <param name="failures">List of <see cref="ValidationFailure"/> which is later available through <see cref="Errors"/>. This list get's copied.</param>
+		/// <remarks>
+		/// Every caller is responsible for not adding <c>null</c> to the list.
+		/// </remarks>
 		public ValidationResult(IEnumerable<ValidationFailure> failures) {
-			errors.AddRange(failures.Where(failure => failure != null));
+			errors = failures.Where(failure => failure != null).ToList();
 		}
 	}
 }

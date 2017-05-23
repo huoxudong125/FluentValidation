@@ -24,6 +24,7 @@
     <DefineConstants>TRACE;DEBUG;PORTABLE40</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>CS1998; CS1591</NoWarn>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <DebugType>pdbonly</DebugType>
@@ -32,15 +33,12 @@
     <DefineConstants>TRACE;PORTABLE40</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <NoWarn>CS1998; CS1591</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <!-- A reference to the entire .NET Framework is automatically included -->
-    <Folder Include="Properties\" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="..\FluentValidation\AssemblyInfo.cs">
-      <Link>AssemblyInfo.cs</Link>
-    </Compile>
     <Compile Include="..\FluentValidation\CollectionValidatorExtensions.cs">
       <Link>CollectionValidatorExtensions.cs</Link>
     </Compile>
@@ -56,9 +54,6 @@
     <Compile Include="..\FluentValidation\Internal\Comparer.cs">
       <Link>Comparer.cs</Link>
     </Compile>
-    <Compile Include="..\FluentValidation\Internal\Compatibility.cs">
-      <Link>Compatibility.cs</Link>
-    </Compile>
     <Compile Include="..\FluentValidation\Internal\IConfigurable.cs">
       <Link>IConfigurable.cs</Link>
     </Compile>
@@ -70,6 +65,9 @@
     </Compile>
     <Compile Include="..\FluentValidation\Internal\RulesetValidatorSelector.cs">
       <Link>RulesetValidatorSelector.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\IParameterValidatorFactory.cs">
+      <Link>IParameterValidatorFactory.cs</Link>
     </Compile>
     <Compile Include="..\FluentValidation\MemberAccessor.cs">
       <Link>MemberAccessor.cs</Link>
@@ -101,11 +99,23 @@
     <Compile Include="..\FluentValidation\TaskHelpers\TaskHelpersExtensions.cs">
       <Link>TaskHelpersExtensions.cs</Link>
     </Compile>
+    <Compile Include="..\FluentValidation\TestHelper\ITestPropertyChain.cs">
+      <Link>ITestPropertyChain.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\TestHelper\IValidationResultTester.cs">
+      <Link>IValidationResultTester.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\TestHelper\TestPropertyChain.cs">
+      <Link>TestPropertyChain.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\TestHelper\TestValidationResult.cs">
+      <Link>TestValidationResult.cs</Link>
+    </Compile>
+    <Compile Include="..\FluentValidation\TestHelper\ValidationResultTester.cs">
+      <Link>ValidationResultTester.cs</Link>
+    </Compile>
     <Compile Include="..\FluentValidation\TestHelper\ValidationTestException.cs">
       <Link>ValidationTestException.cs</Link>
-    </Compile>
-    <Compile Include="..\FluentValidation\TestHelper\ValidatorTester.cs">
-      <Link>ValidatorTester.cs</Link>
     </Compile>
     <Compile Include="..\FluentValidation\TestHelper\ValidatorTestExtensions.cs">
       <Link>ValidatorTestExtensions.cs</Link>
@@ -151,9 +161,6 @@
     </Compile>
     <Compile Include="..\FluentValidation\Internal\Extensions.cs">
       <Link>Extensions.cs</Link>
-    </Compile>
-    <Compile Include="..\FluentValidation\Internal\IFluentInterface.cs">
-      <Link>IFluentInterface.cs</Link>
     </Compile>
     <Compile Include="..\FluentValidation\Internal\IValidatorSelector.cs">
       <Link>IValidatorSelector.cs</Link>
@@ -218,6 +225,9 @@
     <Compile Include="..\FluentValidation\Validators\EmptyValidator.cs">
       <Link>EmptyValidator.cs</Link>
     </Compile>
+    <Compile Include="..\FluentValidation\Validators\EnumValidator.cs">
+      <Link>EnumValidator.cs</Link>
+    </Compile>
     <Compile Include="..\FluentValidation\Validators\EqualValidator.cs">
       <Link>EqualValidator.cs</Link>
     </Compile>
@@ -278,10 +288,12 @@
     <Compile Include="..\FluentValidation\Validators\ScalePrecisionValidator.cs">
       <Link>ScalePrecisionValidator.cs</Link>
     </Compile>
+    <Compile Include="Net40Compatibility.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <ItemGroup>
-    <EmbeddedResource Include="..\FluentValidation\Resources\Messages.cz.resx">
-      <Link>Resources\Messages.cz.resx</Link>
+    <EmbeddedResource Include="..\FluentValidation\Resources\Messages.cs.resx">
+      <Link>Resources\Messages.cs.resx</Link>
     </EmbeddedResource>
     <EmbeddedResource Include="..\FluentValidation\Resources\Messages.da.resx">
       <Link>Resources\Messages.da.resx</Link>
@@ -291,6 +303,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="..\FluentValidation\Resources\Messages.es.resx">
       <Link>Resources\Messages.es.resx</Link>
+    </EmbeddedResource>
+    <EmbeddedResource Include="..\FluentValidation\Resources\Messages.fa.resx">
+      <Link>Resources\Messages.fa.resx</Link>
     </EmbeddedResource>
     <EmbeddedResource Include="..\FluentValidation\Resources\Messages.fi.resx">
       <Link>Resources\Messages.fi.resx</Link>
@@ -319,11 +334,38 @@
     <EmbeddedResource Include="..\FluentValidation\Resources\Messages.sv.resx">
       <Link>Resources\Messages.sv.resx</Link>
     </EmbeddedResource>
+    <EmbeddedResource Include="..\FluentValidation\Resources\Messages.zh-CN.resx">
+      <Link>Resources\Messages.zh-CN.resx</Link>
+      <LastGenOutput>Messages.zh-CN.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Include="..\FluentValidation.snk">
       <Link>FluentValidation.snk</Link>
     </None>
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.Threading.Tasks, Version=1.0.12.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.Bcl.Async.1.0.168\lib\portable-net40+sl4+win8+wp71+wpa81\Microsoft.Threading.Tasks.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="Microsoft.Threading.Tasks.Extensions, Version=1.0.12.0, Culture=neutral, PublicKeyToken=b03f5f7f11d50a3a, processorArchitecture=MSIL">
+      <HintPath>..\..\packages\Microsoft.Bcl.Async.1.0.168\lib\portable-net40+sl4+win8+wp71+wpa81\Microsoft.Threading.Tasks.Extensions.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.IO">
+      <HintPath>..\..\packages\Microsoft.Bcl.1.1.8\lib\portable-net40+sl5+win8+wp8+wpa81\System.IO.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Runtime">
+      <HintPath>..\..\packages\Microsoft.Bcl.1.1.8\lib\portable-net40+sl5+win8+wp8+wpa81\System.Runtime.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System.Threading.Tasks">
+      <HintPath>..\..\packages\Microsoft.Bcl.1.1.8\lib\portable-net40+sl5+win8+wp8+wpa81\System.Threading.Tasks.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
   </ItemGroup>
   <PropertyGroup>
     <SignAssembly>false</SignAssembly>
@@ -332,6 +374,11 @@
     <OutputPath Condition="'$(PerformSigning)'=='True'">bin\$(Configuration)-Signed\</OutputPath>
   </PropertyGroup>
   <Import Project="$(MSBuildExtensionsPath32)\Microsoft\Portable\$(TargetFrameworkVersion)\Microsoft.Portable.CSharp.targets" />
+  <Import Project="..\..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets" Condition="Exists('..\..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" />
+  <Target Name="EnsureBclBuildImported" BeforeTargets="BeforeBuild" Condition="'$(BclBuildImported)' == ''">
+    <Error Condition="!Exists('..\..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="This project references NuGet package(s) that are missing on this computer. Enable NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=317567." HelpKeyword="BCLBUILD2001" />
+    <Error Condition="Exists('..\..\packages\Microsoft.Bcl.Build.1.0.14\tools\Microsoft.Bcl.Build.targets')" Text="The build restored NuGet packages. Build the project again to include these packages in the build. For more information, see http://go.microsoft.com/fwlink/?LinkID=317568." HelpKeyword="BCLBUILD2002" />
+  </Target>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
   <Target Name="BeforeBuild">

@@ -20,7 +20,10 @@ namespace FluentValidation.Results {
 	using System;
 	using System.Collections.Generic;
 
-#if !SILVERLIGHT && !PORTABLE && !PORTABLE40 && !CoreCLR
+	/// <summary>
+	/// Defines a validation failure
+	/// </summary>
+#if !PORTABLE && !PORTABLE40 && !NETSTANDARD1_0
 	[Serializable]
 #endif
 	public class ValidationFailure {
@@ -62,6 +65,11 @@ namespace FluentValidation.Results {
 		/// Custom state associated with the failure.
 		/// </summary>
 		public object CustomState { get; set; }
+
+		/// <summary>
+		/// Custom severity level associated with the failure.
+		/// </summary>
+		public Severity Severity { get; set; }
 		
 		/// <summary>
 		/// Gets or sets the error code.
@@ -81,7 +89,12 @@ namespace FluentValidation.Results {
 		/// Similar placeholders are defined in fluent validation library (check documentation)
 		/// </summary>
 		public Dictionary<string, object> FormattedMessagePlaceholderValues { get; set; }
-		
+
+		/// <summary>
+		/// The resource name used for building the message
+		/// </summary>
+		public string ResourceName { get; set; }
+
 		/// <summary>
 		/// Creates a textual representation of the failure.
 		/// </summary>

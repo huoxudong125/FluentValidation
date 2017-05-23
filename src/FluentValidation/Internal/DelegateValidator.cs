@@ -86,6 +86,7 @@ namespace FluentValidation.Internal {
 		/// Performs validation asynchronously using a validation context and returns a collection of Validation Failures.
 		/// </summary>
 		/// <param name="context">Validation Context</param>
+		/// <param name="cancellation"></param>
 		/// <returns>A collection of validation failures</returns>
 		public Task<IEnumerable<ValidationFailure>> ValidateAsync(ValidationContext<T> context, CancellationToken cancellation) {
 			return asyncFunc(context.InstanceToValidate, context, cancellation);
@@ -109,7 +110,9 @@ namespace FluentValidation.Internal {
 				return Enumerable.Empty<ValidationFailure>();
 			}
 
-			var newContext = new ValidationContext<T>((T) context.InstanceToValidate, context.PropertyChain, context.Selector);
+			var newContext = new ValidationContext<T>((T) context.InstanceToValidate, context.PropertyChain, context.Selector) {
+				RootContextData = context.RootContextData
+			};
 			return Validate(newContext);
 		}
 
@@ -117,6 +120,7 @@ namespace FluentValidation.Internal {
 		/// When overloaded performs validation asynchronously using a validation context and returns a collection of Validation Failures.
 		/// </summary>
 		/// <param name="context">Validation Context</param>
+		/// <param name="cancellation"></param>
 		/// <returns>A collection of validation failures</returns>
 		public Task<IEnumerable<ValidationFailure>> ValidateAsync(ValidationContext context, CancellationToken cancellation) {
 			if (!context.Selector.CanExecute(this, "", context) || !condition(context.InstanceToValidate)) {
@@ -133,30 +137,39 @@ namespace FluentValidation.Internal {
 		}
 
 		Task<IEnumerable<ValidationFailure>> ValidateAsyncInternal(ValidationContext context, CancellationToken cancellation) {
-			var newContext = new ValidationContext<T>((T) context.InstanceToValidate, context.PropertyChain, context.Selector);
+			var newContext = new ValidationContext<T>((T) context.InstanceToValidate, context.PropertyChain, context.Selector) {
+				RootContextData = context.RootContextData
+			};
 			return ValidateAsync(newContext, cancellation);
 		}
 
+		/// <summary>
+		/// Applies a condition to the validator.
+		/// </summary>
+		/// <param name="predicate"></param>
+		/// <param name="applyConditionTo"></param>
 		public void ApplyCondition(Func<object, bool> predicate, ApplyConditionTo applyConditionTo = ApplyConditionTo.AllValidators) {
 			// For custom rules within the DelegateValidator, we ignore ApplyConditionTo - this is only relevant to chained rules using RuleFor.
 			var originalCondition = this.condition;
 			this.condition = x => predicate(x) && originalCondition(x);
 		}
 
+		/// <summary>
+		/// Applies a condition asynchronously to the validator
+		/// </summary>
+		/// <param name="predicate"></param>
+		/// <param name="applyConditionTo"></param>
 		public void ApplyAsyncCondition(Func<object, Task<bool>> predicate, ApplyConditionTo applyConditionTo = ApplyConditionTo.AllValidators)
 		{
 			// For custom rules within the DelegateValidator, we ignore ApplyConditionTo - this is only relevant to chained rules using RuleFor.
 			var originalCondition = this.asyncCondition;
-			this.asyncCondition = x => predicate(x).Then(result => {
-					if (!result)
-						return TaskHelpers.FromResult(false);
 
-					if (originalCondition == null)
-						return TaskHelpers.FromResult(true);
-
-					return originalCondition(x);
-				},
-				runSynchronously: true);
+			this.asyncCondition = async x => {
+				var result = await predicate(x);
+				if (!result) return false;
+				if (originalCondition == null) return true;
+				return await originalCondition(x);
+			};
 		}
 	}
 }

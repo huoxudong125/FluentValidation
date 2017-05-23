@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://www.codeplex.com/FluentValidation
+// The latest version of this file can be found at https://github.com/jeremyskinner/FluentValidation
 #endregion
 
 namespace FluentValidation.WebApi
@@ -36,7 +36,7 @@ namespace FluentValidation.WebApi
 
 		public override IEnumerable<ModelValidationResult> Validate(ModelMetadata metadata, object container) {
 			if (metadata.Model != null) {
-				var selector = new DefaultValidatorSelector();
+				var selector = ValidatorOptions.ValidatorSelectors.DefaultValidatorSelectorFactory();
 				var context = new ValidationContext(metadata.Model, new PropertyChain(), selector);
 
 				var result = validator.Validate(context);

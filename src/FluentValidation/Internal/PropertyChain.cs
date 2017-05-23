@@ -19,7 +19,6 @@
 namespace FluentValidation.Internal {
 	using System;
 	using System.Collections.Generic;
-	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
 
@@ -27,7 +26,7 @@ namespace FluentValidation.Internal {
 	/// Represents a chain of properties
 	/// </summary>
 	public class PropertyChain {
-		readonly List<string> memberNames = new List<string>();
+		readonly List<string> memberNames = new List<string>(2);
 
 		/// <summary>
 		/// Creates a new PropertyChain.
@@ -39,15 +38,25 @@ namespace FluentValidation.Internal {
 		/// Creates a new PropertyChain based on another.
 		/// </summary>
 		public PropertyChain(PropertyChain parent) {
-			if(parent != null) {
+			if(parent != null
+				&& parent.memberNames.Count > 0) {
 				memberNames.AddRange(parent.memberNames);				
 			}
 		}
 
+		/// <summary>
+		/// Creates a new PropertyChain
+		/// </summary>
+		/// <param name="memberNames"></param>
 		public PropertyChain(IEnumerable<string> memberNames) {
 			this.memberNames.AddRange(memberNames);
 		}
 
+		/// <summary>
+		/// Creates a PropertyChain from a lambda expresion
+		/// </summary>
+		/// <param name="expression"></param>
+		/// <returns></returns>
 		public static PropertyChain FromExpression(LambdaExpression expression) {
 			var memberNames = new Stack<string>();
 
@@ -109,7 +118,15 @@ namespace FluentValidation.Internal {
 		/// Creates a string representation of a property chain.
 		/// </summary>
 		public override string ToString() {
-			return string.Join(".", memberNames.ToArray());
+			// Performance: Calling string.Join causes much overhead when it's not needed.
+			switch (memberNames.Count) {
+				case 0:
+					return string.Empty;
+				case 1:
+					return memberNames[0];
+				default:
+					return string.Join(ValidatorOptions.PropertyChainSeparator, memberNames);
+			}			
 		}
 
 		/// <summary>
@@ -127,13 +144,18 @@ namespace FluentValidation.Internal {
 		/// Builds a property path.
 		/// </summary>
 		public string BuildPropertyName(string propertyName) {
+			if (memberNames.Count == 0) {
+				return propertyName;
+			}
+
 			var chain = new PropertyChain(this);
 			chain.Add(propertyName);
 			return chain.ToString();
 		}
 
-		public int Count {
-			get { return memberNames.Count; }
-		}
+		/// <summary>
+		/// Number of member names in the chain
+		/// </summary>
+		public int Count => memberNames.Count;
 	}
 }

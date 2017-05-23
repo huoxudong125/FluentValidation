@@ -1,4 +1,4 @@
-#region License
+/*#region License
 // Copyright (c) Jeremy Skinner (http://www.jeremyskinner.co.uk)
 // 
 // Licensed under the Apache License, Version 2.0 (the "License"); 
@@ -13,9 +13,10 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
+#pragma warning disable 618
 namespace FluentValidation.Tests {
 	using System.Linq;
 	using Xunit;
@@ -81,4 +82,4 @@ namespace FluentValidation.Tests {
 			Assert.Equal(0, result.Errors.Count);
 		}
 	}
-}
+}*/

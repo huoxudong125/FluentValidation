@@ -36,10 +36,15 @@ namespace FluentValidation.Validators {
 			get { return false; }
 		}
 
+		public IStringSource ErrorCodeSource {
+			get { return null; }
+			set { }
+		}
+
 		public abstract IEnumerable<ValidationFailure> Validate(PropertyValidatorContext context);
 
-		public virtual Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
-			return TaskHelpers.FromResult(Validate(context));
+		public virtual async Task<IEnumerable<ValidationFailure>> ValidateAsync(PropertyValidatorContext context, CancellationToken cancellation) {
+			return Validate(context);
 		}
 
 		public virtual ICollection<Func<object, object, object>> CustomMessageFormatArguments {
@@ -54,5 +59,7 @@ namespace FluentValidation.Validators {
 			get { return null; }
 			set { }
 		}
+
+		public Severity Severity { get; set; }
 	}
 }

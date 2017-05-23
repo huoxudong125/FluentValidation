@@ -13,12 +13,14 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://fluentvalidation.codeplex.com
+// The latest version of this file can be found at https://github.com/JeremySkinner/FluentValidation
 #endregion
 
 namespace FluentValidation.Tests {
 	using System;
+	using System.Linq;
 	using Internal;
+	using Validators;
 	using Xunit;
 
 	
@@ -120,6 +122,28 @@ namespace FluentValidation.Tests {
 
 		}
 
+		[Fact]
+		public void WithMessage_works_inside_rulesets() {
+			var validator = new TestValidator2();
+			var result = validator.Validate(new Person(), ruleSet: "Names");
+			Assert.Equal("foo", result.Errors[0].ErrorMessage);
+		}
+
+		[Fact]
+		public void Ruleset_selection_should_not_cascade_downwards_when_set_on_property() {
+			var validator = new TestValidator4();
+			var result = validator.Validate(new PersonContainer() { Person = new Person() }, ruleSet: "Names");
+			result.IsValid.ShouldBeTrue();
+		}
+
+		[Fact]
+		public void Ruleset_selection_should_cascade_downwards_with_when_setting_child_validator_using_include_statement() {
+			var validator = new TestValidator3();
+			var result = validator.Validate(new Person(), ruleSet:"Names");
+			result.IsValid.ShouldBeFalse();
+		}
+
+
 		private class TestValidator : AbstractValidator<Person> {
 			public TestValidator() {
 				RuleSet("Names", () => {
@@ -129,8 +153,38 @@ namespace FluentValidation.Tests {
 
 				RuleFor(x => x.Id).NotEmpty();
 			}
+		}
+
+		private class TestValidator2 : AbstractValidator<Person>
+		{
+			public TestValidator2()
+			{
+				RuleSet("Names", () => {
+					RuleFor(x => x.Surname).NotNull().WithMessage("foo");
+				});
+
+			}
 
 		}
 
+
+		public class TestValidator3 : AbstractValidator<Person> {
+			public TestValidator3() {
+				Include(new TestValidator2());
+			}
+		}
+
+
+		public class PersonContainer {
+			public Person Person { get; set; }
+		}
+
+		public class TestValidator4 : AbstractValidator<PersonContainer>
+		{
+			public TestValidator4()
+			{
+				RuleFor(x => x.Person).SetValidator(new TestValidator2());
+			}
+		}
 	}
 }

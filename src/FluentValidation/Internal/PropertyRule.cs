@@ -19,6 +19,7 @@
 namespace FluentValidation.Internal {
 	using System;
 	using System.Collections.Generic;
+	using System.Globalization;
 	using System.Linq;
 	using System.Linq.Expressions;
 	using System.Reflection;
@@ -88,9 +89,7 @@ namespace FluentValidation.Internal {
 		/// <summary>
 		/// Validators associated with this rule.
 		/// </summary>
-		public IEnumerable<IPropertyValidator> Validators {
-			get { return validators; }
-		}
+		public IEnumerable<IPropertyValidator> Validators => validators;
 
 		/// <summary>
 		/// Creates a new property rule.
@@ -111,7 +110,7 @@ namespace FluentValidation.Internal {
 			
 			DependentRules = new List<IValidationRule>();
 			PropertyName = ValidatorOptions.PropertyNameResolver(containerType, member, expression);
-			DisplayName = new LazyStringSource(() => ValidatorOptions.DisplayNameResolver(containerType, member, expression));
+			DisplayName = new LazyStringSource(x => ValidatorOptions.DisplayNameResolver(containerType, member, expression));
 		}
 
 		/// <summary>
@@ -126,7 +125,11 @@ namespace FluentValidation.Internal {
 		/// </summary>
 		public static PropertyRule Create<T, TProperty>(Expression<Func<T, TProperty>> expression, Func<CascadeMode> cascadeModeThunk) {
 			var member = expression.GetMember();
-			var compiled = expression.Compile();
+			// We can't use the expression tree as a key in the cache, as it doesn't implement GetHashCode/Equals in a useful way.
+			// Instead we'll use the MemberInfo as the key, but this only works for member expressions.
+			// If this is not a member expression (eg, a RuleFor(x => x) or a RuleFor(x => x.Foo())) then we won't cache the result. 
+			// We could probably make the cache more robust in future. 
+			var compiled = member == null || ValidatorOptions.DisableAccessorCache ? expression.Compile() : AccessorCache<T>.GetCachedAccessor(member, expression);
 
 			return new PropertyRule(member, compiled.CoerceToNonGeneric(), expression, cascadeModeThunk, typeof(TProperty), typeof(T));
 		}
@@ -202,7 +205,7 @@ namespace FluentValidation.Internal {
 			string result = null;
 
 			if (DisplayName != null) {
-				result = DisplayName.GetString();
+				result = DisplayName.GetString(null /*We don't have a model object at this point*/);
 			}
 
 			if (result == null) {
@@ -273,6 +276,7 @@ namespace FluentValidation.Internal {
 		/// Performs asynchronous validation using a validation context and returns a collection of Validation Failures.
 		/// </summary>
 		/// <param name="context">Validation Context</param>
+		/// <param name="cancellation"></param>
 		/// <returns>A collection of validation failures</returns>
 		public Task<IEnumerable<ValidationFailure>> ValidateAsync(ValidationContext context, CancellationToken cancellation) {
 			try {
@@ -316,13 +320,25 @@ namespace FluentValidation.Internal {
 					}
 				}
 
-				var asyncValidators = validators.Where(v => v.IsAsync).ToList();
+				//if StopOnFirstFailure triggered then we exit
+				if (fastExit && failures.Count > 0) {
+					// Callback if there has been at least one property validator failed.
+					OnFailure(context.InstanceToValidate);
 
-				//if there's no async validators or StopOnFirstFailure triggered then we exit
-				if (asyncValidators.Count == 0 || fastExit) {
+					return TaskHelpers.FromResult(failures.AsEnumerable());
+				}
+
+				var asyncValidators = validators.Where(v => v.IsAsync).ToList();
+                
+				// if there's no async validators then we exit
+				if (asyncValidators.Count == 0) {
 					if (failures.Count > 0) {
 						// Callback if there has been at least one property validator failed.
 						OnFailure(context.InstanceToValidate);
+					}
+					else
+					{
+						RunDependentRulesAsync(failures, context, cancellation);
 					}
 
 					return TaskHelpers.FromResult(failures.AsEnumerable());
@@ -346,6 +362,11 @@ namespace FluentValidation.Internal {
 						if (failures.Count > 0) {
 							OnFailure(context.InstanceToValidate);
 						}
+						else
+						{
+							RunDependentRulesAsync(failures, context, cancellation);
+						}
+
 						return failures.AsEnumerable();
 					},
 						runSynchronously: true
@@ -356,6 +377,22 @@ namespace FluentValidation.Internal {
 			}
 		}
 
+		private void RunDependentRulesAsync(List<ValidationFailure> failures, ValidationContext context, CancellationToken cancellation)
+		{
+			foreach (var dependentRule in DependentRules)
+			{
+				dependentRule.ValidateAsync(context, cancellation).Then(x => { failures.AddRange(x); }, cancellation, true);
+			}
+		}
+
+		/// <summary>
+		/// Invokes the validator asynchronously 
+		/// </summary>
+		/// <param name="context"></param>
+		/// <param name="validator"></param>
+		/// <param name="propertyName"></param>
+		/// <param name="cancellation"></param>
+		/// <returns></returns>
 		protected virtual Task<IEnumerable<ValidationFailure>> InvokePropertyValidatorAsync(ValidationContext context, IPropertyValidator validator, string propertyName, CancellationToken cancellation) {
 			return validator.ValidateAsync(new PropertyValidatorContext(context, this, propertyName), cancellation);
 		}
@@ -368,6 +405,11 @@ namespace FluentValidation.Internal {
 			return validator.Validate(propertyContext);
 		}
 
+		/// <summary>
+		/// Applies a condition to the rule
+		/// </summary>
+		/// <param name="predicate"></param>
+		/// <param name="applyConditionTo"></param>
 		public void ApplyCondition(Func<object, bool> predicate, ApplyConditionTo applyConditionTo = ApplyConditionTo.AllValidators) {
 			// Default behaviour for When/Unless as of v1.3 is to apply the condition to all previous validators in the chain.
 			if (applyConditionTo == ApplyConditionTo.AllValidators) {
@@ -375,29 +417,67 @@ namespace FluentValidation.Internal {
 					var wrappedValidator = new DelegatingValidator(predicate, validator);
 					ReplaceValidator(validator, wrappedValidator);
 				}
+
+				foreach (var dependentRule in DependentRules.ToList()) {
+					dependentRule.ApplyCondition(predicate, applyConditionTo);
+				}
+			}
+			else {
+				var wrappedValidator = new DelegatingValidator(predicate, CurrentValidator);
+				ReplaceValidator(CurrentValidator, wrappedValidator);
+			}
+
+
+		}
+
+		/// <summary>
+		/// Applies the condition to the rule asynchronously
+		/// </summary>
+		/// <param name="predicate"></param>
+		/// <param name="applyConditionTo"></param>
+		public void ApplyAsyncCondition(Func<object, Task<bool>> predicate, ApplyConditionTo applyConditionTo = ApplyConditionTo.AllValidators) {
+			// Default behaviour for When/Unless as of v1.3 is to apply the condition to all previous validators in the chain.
+			if (applyConditionTo == ApplyConditionTo.AllValidators) {
+				foreach (var validator in Validators.ToList()) {
+					var wrappedValidator = new DelegatingValidator(predicate, validator);
+					ReplaceValidator(validator, wrappedValidator);
+				}
+
+				foreach (var dependentRule in DependentRules.ToList()) {
+					dependentRule.ApplyAsyncCondition(predicate, applyConditionTo);
+				}
 			}
 			else {
 				var wrappedValidator = new DelegatingValidator(predicate, CurrentValidator);
 				ReplaceValidator(CurrentValidator, wrappedValidator);
 			}
 		}
+	}
 
-		public void ApplyAsyncCondition(Func<object, Task<bool>> predicate, ApplyConditionTo applyConditionTo = ApplyConditionTo.AllValidators)
-		{
-			// Default behaviour for When/Unless as of v1.3 is to apply the condition to all previous validators in the chain.
-			if (applyConditionTo == ApplyConditionTo.AllValidators)
-			{
-				foreach (var validator in Validators.ToList())
-				{
-					var wrappedValidator = new DelegatingValidator(predicate, validator);
-					ReplaceValidator(validator, wrappedValidator);
-				}
-			}
-			else
-			{
-				var wrappedValidator = new DelegatingValidator(predicate, CurrentValidator);
-				ReplaceValidator(CurrentValidator, wrappedValidator);
-			}
+	/// <summary>
+	/// Include rule
+	/// </summary>
+	public class IncludeRule : PropertyRule {
+		/// <summary>
+		/// Creates a new IncludeRule
+		/// </summary>
+		/// <param name="validator"></param>
+		/// <param name="cascadeModeThunk"></param>
+		/// <param name="typeToValidate"></param>
+		/// <param name="containerType"></param>
+		public IncludeRule(IValidator validator,  Func<CascadeMode> cascadeModeThunk, Type typeToValidate, Type containerType) : base(null, x => x, null, cascadeModeThunk, typeToValidate, containerType) {
+			AddValidator(new ChildValidatorAdaptor(validator));
+		}
+
+		/// <summary>
+		/// Creates a new include rule from an existing validator
+		/// </summary>
+		/// <param name="validator"></param>
+		/// <param name="cascadeModeThunk"></param>
+		/// <typeparam name="T"></typeparam>
+		/// <returns></returns>
+		public static IncludeRule Create<T>(IValidator validator, Func<CascadeMode> cascadeModeThunk) {
+			return new IncludeRule(validator, cascadeModeThunk, typeof(T), typeof(T));
 		}
 	}
 }

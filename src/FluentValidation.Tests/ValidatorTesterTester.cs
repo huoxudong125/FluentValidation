@@ -17,10 +17,12 @@
 #endregion
 
 namespace FluentValidation.Tests {
+	using System;
 	using Xunit;
 	using TestHelper;
+	using Validators;
 
-	
+
 	public class ValidatorTesterTester {
 		private TestValidator validator;
 
@@ -113,12 +115,108 @@ namespace FluentValidation.Tests {
 			testValidator.ShouldHaveValidationErrorFor(x => x.Forename, new Person(), "Names");
 		}
 
+		[Fact]
+		public void ShouldHaveValidationErrorFor_takes_account_of_rulesets_fluent_approach() {
+			var testValidator = new TestValidator();
+			testValidator.RuleSet("Names", () => {
+				testValidator.RuleFor(x => x.Surname).NotNull();
+				testValidator.RuleFor(x => x.Forename).NotNull();
+			});
+			testValidator.RuleFor(x => x.Id).NotEqual(0);
+
+			var assertionRoot = testValidator.TestValidate(new Person(), "Names").Which;
+
+			assertionRoot.Property(x => x.Forename).ShouldHaveValidationError()
+				.WithErrorCode("NotNullValidator");
+			assertionRoot.Property(x => x.Surname).ShouldHaveValidationError().WithErrorCode("NotNullValidator");
+			assertionRoot.Property(x => x.Id).ShouldNotHaveValidationError();
+		}
+
+		[Fact]
+		public void ShouldHaveValidationError_should_correctly_handle_explicitly_providing_object_to_validate()
+		{
+			var unitOfMeasure = new UnitOfMeasure
+			{
+				Value = 1
+			};
+
+			var validator = new UnitOfMeasureValidator();
+
+			validator.ShouldHaveValidationErrorFor(unit => unit.Type, unitOfMeasure);
+		}
+
+		[Fact]
+		public void ShouldNotHaveValidationError_should_correctly_handle_explicitly_providing_object_to_validate()
+		{
+			var unitOfMeasure = new UnitOfMeasure
+			{
+				Value = 1,
+				Type = 43
+			};
+
+			var validator = new UnitOfMeasureValidator();
+
+			validator.ShouldNotHaveValidationErrorFor(unit => unit.Type, unitOfMeasure);
+		}
+
+		[Fact]
+		public void ShouldNotHaveValidationError_should_correctly_handle_explicitly_providing_object_to_validate_and_other_property_fails_validation()
+		{
+			var validator = new Address2Validator();
+			validator.RuleFor(x => x.StreetNumber).Equal("foo");
+
+			var address = new Address2
+			{
+				StreetNumber = "a",
+				Street = "b"
+			};
+
+			validator.ShouldNotHaveValidationErrorFor(a => a.Street, address);
+		}
+
 		private class AddressValidator : AbstractValidator<Address> {
 
 		}
 
 		private class OrderValidator : AbstractValidator<Order> {
 
+		}
+
+		public class UnitOfMeasure
+		{
+			public int Value { get; set; }
+			public int? Type { get; set; }
+		}
+
+		
+        public class UnitOfMeasureValidator : AbstractValidator<UnitOfMeasure>
+        {
+            public UnitOfMeasureValidator() {
+                RuleFor(unit => unit.Value).GreaterThanOrEqualTo(0);
+
+                RuleFor(unit => unit.Type).NotNull()
+                    .When(unit => unit.Value > 0)
+                    .WithMessage("If a unit of measure's 'Value' is provided, then a 'Type' also needs to be provided.");
+            }
+        }
+
+		public class Address2 {
+			public string StreetNumber { get; set; }
+			public string Street { get; set; }
+		}
+
+		public class Address2Validator : AbstractValidator<Address2>
+		{
+			public static string RuleLocationNames = "LocationNames";
+
+			public Address2Validator()
+			{
+				// Cannot have a street number/lot and no street name.
+				RuleFor(address => address.Street)
+					.NotNull()
+					.When(address => !string.IsNullOrWhiteSpace(address.StreetNumber))
+					.WithMessage("A street name is required when a street number has been provided. Eg. Smith Street.");
+			}
 		}
 	}
 }

@@ -129,7 +129,7 @@ namespace FluentValidation.Tests
 		[Fact]
 		public void Async_condition_should_work_with_child_collection() {
 			var validator = new TestValidator() {
-				v => v.RuleFor(x => x.Orders).SetCollectionValidator(y => new OrderValidator(y)).WhenAsync(x => TaskHelpers.FromResult(x.Orders.Count == 4 /*there are only 3*/))
+				v => v.RuleFor(x => x.Orders).SetCollectionValidator(y => new OrderValidator(y)).WhenAsync(async x => x.Orders.Count == 4 /*there are only 3*/)
 			};
 
 			var result = validator.ValidateAsync(person).Result;
@@ -186,6 +186,38 @@ namespace FluentValidation.Tests
 			results.Errors[0].PropertyName.ShouldEqual("Orders2[0].ProductName");
 		}
 
+
+		[Fact]
+		public void Should_work_with_top_level_collection_validator()
+		{
+			var personValidator = new InlineValidator<Person>();
+			personValidator.RuleFor(x => x.Surname).NotNull();
+
+			var validator = new InlineValidator<List<Person>>();
+			validator.RuleFor(x => x).SetCollectionValidator(personValidator);
+
+
+			var results = validator.Validate(new List<Person> { new Person(), new Person(), new Person { Surname = "Bishop"} });
+			results.Errors.Count.ShouldEqual(2);
+			results.Errors[0].PropertyName.ShouldEqual("x[0].Surname");
+		}
+
+		[Fact]
+		public void Should_work_with_top_level_collection_validator_and_overriden_name()
+		{
+			var personValidator = new InlineValidator<Person>();
+			personValidator.RuleFor(x => x.Surname).NotNull();
+
+			var validator = new InlineValidator<List<Person>>();
+			validator.RuleFor(x => x).SetCollectionValidator(personValidator).OverridePropertyName("test");
+
+
+			var results = validator.Validate(new List<Person> { new Person(), new Person(), new Person { Surname = "Bishop" } });
+			results.Errors.Count.ShouldEqual(2);
+			results.Errors[0].PropertyName.ShouldEqual("test[0].Surname");
+		}
+
+
 		public class OrderValidator : AbstractValidator<Order>
 		{
 			public OrderValidator(Person person)
@@ -216,7 +248,7 @@ namespace FluentValidation.Tests
 
 			private Func<string, CancellationToken, Task<bool>> BeOneOfTheChildrensEmailAddress(Person person)
 			{
-				return (productName, cancel) => TaskHelpers.FromResult(person.Children.Any(child => child.Email == productName));
+				return async (productName, cancel) => person.Children.Any(child => child.Email == productName);
 			}
 		}
 	}

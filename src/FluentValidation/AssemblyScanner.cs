@@ -24,7 +24,7 @@ namespace FluentValidation {
 	using System.Reflection;
     using Internal;
 
-#if !PORTABLE && !PORTABLE40 && !CoreCLR
+#if (!PORTABLE && !PORTABLE40)
 	/// <summary>
 	/// Class that can be used to find all the validators from a collection of types.
 	/// </summary>
@@ -42,26 +42,38 @@ namespace FluentValidation {
 		/// Finds all the validators in the specified assembly.
 		/// </summary>
 		public static AssemblyScanner FindValidatorsInAssembly(Assembly assembly) {
+#if NETSTANDARD1_0
+			return new AssemblyScanner(assembly.ExportedTypes);
+#else
 			return new AssemblyScanner(assembly.GetExportedTypes());
+#endif
 		}
 
 		/// <summary>
 		/// Finds all the validators in the assembly containing the specified type.
 		/// </summary>
 		public static AssemblyScanner FindValidatorsInAssemblyContaining<T>() {
-			return FindValidatorsInAssembly(typeof(T).GetAssembly());
+			return FindValidatorsInAssembly(typeof(T).GetTypeInfo().Assembly);
 		}
 
 		private IEnumerable<AssemblyScanResult> Execute() {
 			var openGenericType = typeof(IValidator<>);
 
+#if NETSTANDARD1_0
 			var query = from type in types
-						let interfaces = type.GetInterfaces()
-						let genericInterfaces = interfaces.Where(i => i.IsGenericType() && i.GetGenericTypeDefinition() == openGenericType)
+						let interfaces = type.GetTypeInfo().ImplementedInterfaces
+						let genericInterfaces = interfaces.Where(i => i.GetTypeInfo().IsGenericType && i.GetGenericTypeDefinition() == openGenericType)
 						let matchingInterface = genericInterfaces.FirstOrDefault()
 						where matchingInterface != null
 						select new AssemblyScanResult(matchingInterface, type);
-
+#else
+			var query = from type in types
+						let interfaces = type.GetInterfaces()
+						let genericInterfaces = interfaces.Where(i => i.GetTypeInfo().IsGenericType && i.GetGenericTypeDefinition() == openGenericType)
+						let matchingInterface = genericInterfaces.FirstOrDefault()
+						where matchingInterface != null
+						select new AssemblyScanResult(matchingInterface, type);
+#endif
 			return query;
 		}
 
@@ -113,4 +125,4 @@ namespace FluentValidation {
 
 	}
 #endif
-}
+		}

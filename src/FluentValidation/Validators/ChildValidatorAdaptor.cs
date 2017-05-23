@@ -4,6 +4,7 @@ namespace FluentValidation.Validators {
 	using System.Linq;
 	using System.Threading;
 	using System.Threading.Tasks;
+	using Internal;
 	using Results;
 
 	public class ChildValidatorAdaptor : NoopPropertyValidator {
@@ -63,7 +64,8 @@ namespace FluentValidation.Validators {
 			return validationApplicator(newContext, validator);
 		}
 
-		protected virtual IValidator GetValidator(PropertyValidatorContext context) {
+		public virtual IValidator GetValidator(PropertyValidatorContext context) {
+			context.Guard("Cannot pass a null context to GetValidator");
 			return validatorProvider(context.Instance);
 		}
 

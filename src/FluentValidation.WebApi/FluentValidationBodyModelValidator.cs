@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and 
 // limitations under the License.
 // 
-// The latest version of this file can be found at http://www.codeplex.com/FluentValidation
+// The latest version of this file can be found at https://github.com/jeremyskinner/FluentValidation
 #endregion
 
 namespace FluentValidation.WebApi
@@ -82,17 +82,30 @@ namespace FluentValidation.WebApi
 
 		internal static bool IsSimpleType(Type type)
 		{
-			return type.IsPrimitive ||
-				   type.Equals(typeof(string)) ||
+            return type.IsPrimitive ||
+                   (type.IsArray && type.GetElementType().IsPrimitive) ||
+                   type.Equals(typeof(string)) ||
 				   type.Equals(typeof(DateTime)) ||
 				   type.Equals(typeof(Decimal)) ||
 				   type.Equals(typeof(Guid)) ||
 				   type.Equals(typeof(DateTimeOffset)) ||
 				   type.Equals(typeof(TimeSpan));
-		}
-
+        }
+		
 		private bool ValidateNodeAndChildren(ModelMetadata metadata, ValidationContext validationContext, object container) {
-			object model = metadata.Model;
+
+			object model = null;
+
+			try {
+				model = metadata.Model;
+			}
+			catch {
+				// Retrieving the model failed - typically caused by a property getter throwing
+				// Being unable to retrieve a property is not a validation error - many properties can only be retrieved if certain conditions are met
+				// For example, Uri.AbsoluteUri throws for relative URIs but it shouldn't be considered a validation error
+				return true;
+			}
+
 			bool isValid = true;
 
 			// Optimization: we don't need to recursively traverse the graph for null and primitive types
